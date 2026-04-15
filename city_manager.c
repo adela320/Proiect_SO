@@ -1,5 +1,19 @@
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+#define MAX 100
+
+// functie modif(char *pathname, mode_t mode) -> modific drepturile de acces ale fisierului (S_IRUSR, S_IWUSR etc)
+
+
+typedef struct Report{
+     int report_id;
+     char user[MAX];
+     float latitude, longitude;
+     int severity;
+     time_t timestamp;
+     char description_text[50];
+}Report;
 
 int main(int argc, char **argv)
 {
