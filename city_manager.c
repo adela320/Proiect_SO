@@ -7,18 +7,37 @@
 #include <unistd.h>   // pentru read(), write(), lseek() si altele
 #define MAX 100
 
-// functie modif(char *pathname, mode_t mode) -> modific drepturile de acces ale fisierului (S_IRUSR, S_IWUSR etc)
+// functie modif -> modific drepturile de acces ale fisierului (S_IRUSR, S_IWUSR etc)
 
 void modif(mode_t mode, char *str)
 {
      str[0] = (mode & S_IRUSR) ? 'r' : '-';
-     //(mode & S_IRGRP) ? 'r' : '-';
-     //s[9] = 0;
+     str[1] = (mode & S_IWUSR) ? 'w' : '-';
+     str[2] = (mode & S_IXUSR) ? 'x' : '-';
+     str[3] = (mode & S_IRGRP) ? 'r' : '-';
+     str[4] = (mode & S_IWGRP) ? 'w' : '-';
+     str[5] = (mode & S_IXGRP) ? 'x' : '-';
+     str[6] = (mode & S_IROTH) ? 'r' : '-';
+     str[7] = (mode & S_IWOTH) ? 'w' : '-';
+     str[8] = (mode & S_IROTH) ? 'x' : '-';
+     str[9] = '\0';
 
 }
 
 //list_reports -> extrag si afisez toate datele pentru un anumit district
-void list_reports(const char *district){}
+void list_reports(const char *district){
+     char path[MAX];
+     snprintf(path, sizeof(path), "%s/reports.dat", district);
+
+    struct stat st;
+    if (stat(path, &st) < 0) {
+        perror("Eroare stat");
+        return;
+    }
+
+
+
+}
 
 
 
@@ -40,6 +59,17 @@ void log_action(const char *district, const char *role, const char *user, const 
     close(fd);
 }
 
+void verif_permisiuni(const char *path)
+{
+    struct stat st;
+    if(stat(path, &st) == 0)
+    {
+        char aux[10];
+        modif(st.st_mode, aux);
+        printf("Permisiunile %s sunt: %s\n", path, aux);
+    }
+}
+
 typedef struct Report{
      int report_id;
      char inspector_name[MAX];
@@ -50,13 +80,14 @@ typedef struct Report{
      char description[MAX];
 }Report;
 
+
 int main(int argc, char **argv)
 {
      char *role = NULL;
      char *user = NULL;
      char *district_id = NULL;
      char *cmd = NULL;
-     printf("%d\n", argc);
+     printf("Nr de argumente: %d\n", argc);
 
      for(int i = 1; i < argc; i ++)
      {
@@ -80,14 +111,25 @@ int main(int argc, char **argv)
          }
      }
 
-     printf("role: %s, user: %s, district_id: %s\n", role, user, district_id);
+     printf("role: %s, user: %s, district_id: %s, cmd: %s\n", role, user, district_id, cmd);
 
-     mkdir(district_id, 0750); // si chmod
+     mkdir(district_id, 750);
+     chmod(district_id, 750);
 
      char link_name[MAX], target_path[MAX];
-     snprintf(link_name, sizeof(link_name), "active_reports-%s", district_id); //%s/reports.dat
 
-     //symlink(target_path, link_name);
+     //"Symbolic links pointing to each district's report file"
+     snprintf(link_name, sizeof(link_name), "active_reports-%s", district_id);
+     snprintf(target_path, sizeof(target_path), "%s/reports.dat", district_id);
+
+    //daca cumva exista legatura mai intai trb stearsa
+    struct stat link_stat;
+    if (lstat(link_name, &link_stat) == 0) {
+        unlink(link_name);
+    }
+    symlink(target_path, link_name);
+
+    verif_permisiuni("district_directory1");
 
      /*
 
