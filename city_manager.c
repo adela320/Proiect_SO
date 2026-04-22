@@ -7,8 +7,20 @@
 #include <unistd.h>   // pentru read(), write(), lseek() si altele
 #define MAX 100
 
-// functie modif -> modific drepturile de acces ale fisierului (S_IRUSR, S_IWUSR etc)
 
+typedef struct Report{
+     int report_id;
+     char inspector_name[MAX];
+     float latitude, longitude;
+     char category[MAX];
+     int severity;
+     time_t timestamp;
+     char description[MAX];
+}Report;
+
+
+
+// functie modif -> modific drepturile de acces ale fisierului (S_IRUSR, S_IWUSR etc)
 void modif(mode_t mode, char *str)
 {
      str[0] = (mode & S_IRUSR) ? 'r' : '-';
@@ -34,11 +46,22 @@ void list_reports(const char *district){
         perror("Eroare stat");
         return;
     }
+    char modif_str[11];
+    modif(st.st_mode, modif_str);
+    printf("Fisier: %s, Permisiuni: %s, Dimensiune: %ld bytes, Ultimul modif: %ld\n", path, modif_str, st.st_size, st.st_mtime);
 
+    int fd = open(path, O_RDONLY);
+    if (fd < 0)
+    {
+        return;
+    }
 
-
+    Report r;
+    while (read(fd, &r, sizeof(Report)) > 0) {
+        printf("%d %s, %s, severity: %d, description: %s\n", r.report_id, r.category, r.inspector_name, r.severity, r.description);
+    }
+    close(fd);
 }
-
 
 
 //logged_district permisiuni rw-r--r-- -> 4+2, 4, 4, -> 644
@@ -69,17 +92,6 @@ void verif_permisiuni(const char *path)
         printf("Permisiunile %s sunt: %s\n", path, aux);
     }
 }
-
-typedef struct Report{
-     int report_id;
-     char inspector_name[MAX];
-     float latitude, longitude;
-     char category[MAX];
-     int severity;
-     time_t timestamp;
-     char description[MAX];
-}Report;
-
 
 int main(int argc, char **argv)
 {
@@ -131,19 +143,16 @@ int main(int argc, char **argv)
 
     verif_permisiuni("district_directory1");
 
-     /*
-
      if(strcmp(cmd, "list") == 0)
      {
-         //list_reports(district);
-         //log_action(district, role, user, "list");
+         list_reports("district_directory1"); //trebuie district_id, pentru verificare am folosit district_directory1
+         log_action(district_id, role, user, "list");
      }
      else if (strcmp(cmd, "add") == 0) {
         // logica de citire a datelor pentru report
         // scriem in reports.dat si setezi chmod
-       // log_action(district, role, user, "add");
+        log_action(district_id, role, user, "add");
       }
-      */
 
      return 0;
 }
