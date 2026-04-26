@@ -5,7 +5,7 @@ Sistem de gestionare a incidentelor urbane bazat pe fișiere binare și ierarhii
 ## Compilare
 
 ```bash
-gcc -Wall city_manager.c -o city_manager
+gcc -Wall -o city_manager city_manager.c 
 ```
 
 ## Exemple de utilizare (District: midtown)
