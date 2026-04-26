@@ -98,28 +98,17 @@ int verificare_acces(const char *filename, const char *role, char mode) { //impl
     return 0;
 }
 
-//Partea cu AI:
+//Partea cu AI: parse condition & match condition
 
-
-/**
-   Functia 1: parse_condition
-   Separa un sir de forma "camp:operator:valoare" (ex: "severity:>=:2")
-   Returneaza 1 la succes, 0 la format invalid.
- */
 
 int parse_condition(const char *input, char *field, char *op, char *value) {
     return sscanf(input, "%99[^:]:%9[^:]:%99[^\n]", field, op, value) == 3;
 }
 
-/**
-  Functia 2: match_condition
-  Verifica daca un raport 'r' indeplineste conditia data.
-  Returneaza 1 (True) sau 0 (False).
- */
 
 int match_condition(Report *r, const char *field, const char *op, const char *value) {
+
     // Filtrarea dupa Severity
-   // printf("field=[%s] op=[%s] value=[%s] category=[%s]\n", field, op, value, r->category);
     if (strcmp(field, "severity") == 0) {
         int val = atoi(value);
         if (strcmp(op, "==") == 0)
@@ -158,7 +147,7 @@ int match_condition(Report *r, const char *field, const char *op, const char *va
         {
             return res != 0;
         }
-        // Operatorii <, >, <=, >= functioneaza lexicografic pentru string-uri
+        // Operatorii <, >, <=, >= functioneaza lexicografic pentru string uri
         if (strcmp(op, ">") == 0)
         {
             return res > 0;
@@ -188,7 +177,7 @@ int match_condition(Report *r, const char *field, const char *op, const char *va
             return res != 0;
         }
     }
-    //  Filtrare dupa timestamp (time_t / long)
+    //  Filtrare dupa timestamp
     else if (strcmp(field, "timestamp") == 0) {
         long long val = atoll(value);
         if (strcmp(op, "==") == 0)
@@ -236,12 +225,16 @@ void list_reports(const char *district){
 }
 
 
-//logged_district permisiuni rw-r--r-- -> 4+2, 4, 4, -> 644
 
 void log_action(const char *district, const char *role, const char *user, const char *action)
 {
     char path[MAX];
     snprintf(path, sizeof(path), "%s/logged_district", district);
+
+    if (!verificare_acces(path, role, 'w')) {
+        fprintf(stderr, "Warning: Rolul %s nu are drept de scriere in log %s\n", role, path);
+        return; // nu facem exit(1) aici pt a lasa op principala (de ex: add), sa reuseasca
+    }
 
      //file descriptor
     int fd = open(path, O_WRONLY | O_APPEND | O_CREAT, 0644); //doar pt scriere, adaug la final, creaza
@@ -283,7 +276,7 @@ void add_report(const char *district_id, const char *role, const char *user)
         strncpy(r.inspector_name, user, MAX); //salvam numele inspectorului
         r.timestamp = time(NULL); //generam timestamp
 
-        // datele le voi redirectiona dintr-un fisier
+        // datele le voi citi prin redirectionare dintr-un fisier
 
         if (scanf("%f %f %s %d", &r.latitude, &r.longitude, r.category, &r.severity) != 4) {
             fprintf(stderr, "Eroare: Format date de intrare invalid.\n");
@@ -291,8 +284,8 @@ void add_report(const char *district_id, const char *role, const char *user)
         }
 
         if (r.severity < 1 || r.severity > 3) {
-            fprintf(stderr, "Eroare: Severitatea trebuie se fie 1/2/3, nu %d\n", r.severity);
-            exit(1); // Oprim executia pentru a nu polua fisierul binar cu date gresite
+            fprintf(stderr, "Eroare: Severity trebuie se fie 1/2/3, nu %d\n", r.severity);
+            exit(1); //date gresite -> iesim
         }
 
         getchar(); // get rid of space / newline
@@ -391,10 +384,15 @@ void update_threshold(const char *district_id, const char *role, const char *use
         exit(1);
     }
 
+    if (!verificare_acces(path, role, 'w')) {
+        fprintf(stderr, "Acces refuzat la scriere in %s pentru rolul %s\n", path, role);
+        exit(1);
+    }
+
     // izolam doar bitii de permisiuni (ultimii 9 biti)
     mode_t current_mode = st.st_mode & 0777;
     if (current_mode != 0640) {
-        fprintf(stderr, "Atentie: Permisiunile pentru %s sunt %o, nu 640! Operatie refuzata\n", path, current_mode);
+        fprintf(stderr, "Operatie refuzata: Permisiunile trebuie sa fie 640 pentru %o, nu %s\n", current_mode, path);
         exit(1);
     }
 
@@ -422,7 +420,7 @@ void view_report(const char *district_id, const char *role, const char *user, in
 
     int fd = open(path, O_RDONLY);
     if (fd == -1) {
-        perror("Eroare deschidere reports.dat");
+        perror("reports.dat");
         return;
     }
 
@@ -468,10 +466,12 @@ void filter_reports(const char *district_id, const char *role, int argc, char **
     }
 
     Report r;
-    while (read(fd, &r, sizeof(Report)) > 0) {
+    while (read(fd, &r, sizeof(Report)) > 0)
+    {
         int all_match = 1;
-        // parcurgem toate conditiile primite ca arg // ex : severity:>:2 category:==:road)
-        for (int i = start_index; i < argc; i++) {
+        // parcurgem toate conditiile primite ca arg // ex : severity:\>:2 category:==:road)
+        for (int i = start_index; i < argc; i++)
+        {
             char field[MAX], op[MAX], value[MAX];
             if (!parse_condition(argv[i], field, op, value)) {
                 all_match = 0;
@@ -494,7 +494,7 @@ void filter_reports(const char *district_id, const char *role, int argc, char **
 void remove_report(const char *district_id, const char *role, const char *user, int target_id) {
     // verificare rol -> doar managerul are voie
     if (strcmp(role, "manager") != 0) {
-        fprintf(stderr, "Eroare: Acces refuzat. Doar managerul poate sterge rapoarte.\n");
+        fprintf(stderr, "Eroare: Acces refuzat. Doar managerul poate sterge rapoarte\n");
         exit(1);
     }
 
@@ -509,12 +509,11 @@ void remove_report(const char *district_id, const char *role, const char *user, 
     }
 
     Report r;
-    off_t pos_to_delete = -1;
+    off_t pos_to_delete = -1; //poz de unde incepe raportul pe care vrem sa-l stergem
 
-    // cautam pozitia raportului de sters
+    // cautam
     while (read(fd, &r, sizeof(Report)) > 0) {
         if (r.report_id == target_id) {
-            // retinem pozitia de inceput a inregistrarii gasite
             pos_to_delete = lseek(fd, 0, SEEK_CUR) - sizeof(Report);
             break;
         }
@@ -568,9 +567,9 @@ int main(int argc, char **argv)
      char *user = NULL;
      char *district_id = NULL;
      char *cmd = NULL;
-     char *extra_arg = NULL;
+     char *aux = NULL;
      int filter_start_index = 0;
-     printf("Nr de argumente: %d\n", argc);
+    // printf("Nr de argumente: %d\n", argc); //functioneaza
 
      for(int i = 1; i < argc; i ++)
      {
@@ -594,19 +593,19 @@ int main(int argc, char **argv)
          }
          else if(strcmp(argv[i], "--view") == 0)
         {
-             district_id = argv[++i];   // Primul param: districtul
-             extra_arg = argv[++i];     // Al doilea param: ID-ul raportului
+             district_id = argv[++i];   // primul param: districtul
+             aux = argv[++i];     // al doilea param: ID-ul raportului
              cmd = "view";
         }
         else if(strcmp(argv[i], "--update_threshold") == 0)
         {
-             district_id = argv[++i];   // Primul param: districtul
-             extra_arg = argv[++i];     // Al doilea param: valoarea pragului
+             district_id = argv[++i];   // primul param: districtul
+             aux = argv[++i];     // al doilea param: valoarea pragului
              cmd = "update_threshold";
         }
         else if (strcmp(argv[i], "--remove_report") == 0) {
             district_id = argv[++i];
-            extra_arg = argv[++i]; // ID-ul raportului de sters
+            aux = argv[++i]; // ID-ul raportului de sters
             cmd = "remove_report";
         }
         else if (strcmp(argv[i], "--filter") == 0) {
@@ -623,7 +622,11 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-     printf("role: %s, user: %s, district_id: %s, cmd: %s\n", role, user, district_id, cmd); //pt verificare
+    // printf("role: %s, user: %s, district_id: %s, cmd: %s\n", role, user, district_id, cmd); //pt verificare - functioneaza
+     if (strcmp(role, "inspector") != 0 && strcmp(role, "manager") != 0) { //acceptam doar roluri tip inspector si manager -> verificam de la inceput sa fie ok
+        fprintf(stderr, "Eroare: Rolul '%s' nu este valid, foloseste 'inspector' sau 'manager'\n", role);
+        exit(1);
+    }
 
     if (strcmp(cmd, "add") == 0) {
          creare_fisiere(district_id);
@@ -634,7 +637,7 @@ int main(int argc, char **argv)
         manage_link(district_id);
      }
 
-    verif_permisiuni(district_id);
+   // verif_permisiuni(district_id); //functioneaza
 
     //check if cmd != NULL
 
@@ -653,27 +656,28 @@ int main(int argc, char **argv)
       }
       else if (strcmp(cmd, "view") == 0)
     {
-         if (extra_arg == NULL) {
+         if (aux == NULL) {
              fprintf(stderr, "Eroare: Comanda view necesita un ID de raport\n");
              exit(1);
          }
-         // Transformăm extra_arg din string in int pentru funcția view
-         view_report(district_id, role, user, atoi(extra_arg));
+         // aux din string in int pentru funcția view
+         view_report(district_id, role, user, atoi(aux));
     }
     else if (strcmp(cmd, "update_threshold") == 0)
     {
-         if (extra_arg == NULL) {
+         if (aux == NULL) {
              fprintf(stderr, "Eroare: Comanda update_threshold necesita o valoare\n");
              exit(1);
          }
-         update_threshold(district_id, role, user, extra_arg);
+         update_threshold(district_id, role, user, aux);
     }
-    else if (strcmp(cmd, "remove_report") == 0) {
-        if (extra_arg == NULL) {
-            fprintf(stderr, "Eroare: remove_report necesita un ID.\n");
+    else if (strcmp(cmd, "remove_report") == 0)
+    {
+        if (aux == NULL) {
+            fprintf(stderr, "Eroare: remove_report necesita un ID\n");
             exit(1);
         }
-       remove_report(district_id, role, user, atoi(extra_arg));
+       remove_report(district_id, role, user, atoi(aux));
     }
     else if (strcmp(cmd, "filter") == 0) {
          filter_reports(district_id, role, argc, argv, filter_start_index);

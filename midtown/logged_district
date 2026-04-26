@@ -9,3 +9,7 @@
 1777237539 alice manager update_threshold
 1777239166 alice manager add
 1777239191 alice manager add
+1777241695 maria manager add
+1777242148 alice manager list
+1777242202 alice manager remove_report
+1777242242 alice manager list
