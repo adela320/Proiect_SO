@@ -155,6 +155,76 @@ void verif_permisiuni(const char *path)
     }
 }
 
+void add_report(const char *district_id, const char *role, const char *user)
+{
+     char path[MAX];
+        snprintf(path, sizeof(path), "%s/reports.dat", district_id);
+
+        // verificam accesul
+        if (!verificare_acces(path, role, 'w')) {
+            fprintf(stderr, "Acces refuzat");
+            exit(1);
+        }
+
+        Report r;
+
+        // date automate
+        r.report_id = (int)time(NULL) % 10000;
+        strncpy(r.inspector_name, user, MAX); //salvam numele inspectorului
+        r.timestamp = time(NULL); //generam timestamp
+
+        // datele le voi redirectiona dintr-un fisier
+
+        if (scanf("%f %f %s %d", &r.latitude, &r.longitude, r.category, &r.severity) != 4) {
+            fprintf(stderr, "Eroare: Format date de intrare invalid.\n");
+            exit(1);
+        }
+        getchar(); // get rid of space / newline
+        fgets(r.description, MAX, stdin);
+        r.description[strcspn(r.description, "\n")] = 0; // elimina \n de la fgets
+
+        //scrierea binara
+        int fd = open(path, O_WRONLY | O_APPEND);
+        if (fd != -1) {
+            write(fd, &r, sizeof(Report));
+            chmod(path, 0664); // ne asiguram ca ramane 664
+            close(fd);
+
+            log_action(district_id, role, user, "add");
+            printf("Succes: Raport %d adaugat in %s\n", r.report_id, district_id);
+        }
+}
+
+void list_district(const char *district_id, const char *role, const char *user)
+{
+    char path[MAX];
+    snprintf(path, sizeof(path), "%s/reports.dat", district_id);
+
+    if (verificare_acces(path, role, 'r')) {
+        printf("Succes : Acces permis pentru list in districtul %s\n", district_id);
+
+        list_reports(district_id);
+
+        //verif permisiunea de scriere
+        char log_path[MAX];
+        snprintf(log_path, sizeof(log_path), "%s/logged_district", district_id);
+
+        if (verificare_acces(log_path, role, 'w')) {
+            log_action(district_id, role, user, "list");
+        }
+        else
+        {
+            fprintf(stderr, "Rolul %s nu are drept de scriere in %s\n", role, log_path);
+            exit(1);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "Acces refuzat. Rolul %s nu poate citi %s\n", role, path);
+        exit(1);
+    }
+}
+
 int main(int argc, char **argv)
 {
      char *role = NULL;
@@ -218,37 +288,11 @@ int main(int argc, char **argv)
 
      if(strcmp(cmd, "list") == 0)
      {
-        char path[MAX];
-        snprintf(path, sizeof(path), "%s/reports.dat", district_id);
-
-        if (verificare_acces(path, role, 'r')) {
-            printf("Succes : Acces permis pentru list in districtul %s\n", district_id);
-
-            list_reports(district_id);
-
-            //verif permisiunea de scriere pe log
-            char log_path[MAX];
-            snprintf(log_path, sizeof(log_path), "%s/logged_district", district_id);
-
-            if (verificare_acces(log_path, role, 'w')) {
-                log_action(district_id, role, user, "list");
-            }
-            else
-            {
-                fprintf(stderr, "Rolul %s nu are drept de scriere in %s\n", role, log_path);
-                exit(1);
-            }
-        }
-        else
-        {
-            fprintf(stderr, "Acces refuzat. Rolul %s nu poate citi %s\n", role, path);
-            exit(1);
-        }
+          list_district(district_id, role, user);
      }
      else if (strcmp(cmd, "add") == 0) {
-        // logica de citire a datelor pentru report
-        // scriem in reports.dat si setezi chmod
-        log_action(district_id, role, user, "add");
+         add_report(district_id, role, user);
+
       }
 
      return 0;
