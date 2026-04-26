@@ -47,6 +47,6 @@ gcc -Wall -o city_manager city_manager.c
 ./city_manager --role manager --user alice --remove_report midtown 1695
 ```
 
-**Notă:** Pentru operatorii > și < se folosește backslash (\) pentru a preveni redirecționarea în shell (ex: severity:\>=:2).
+**Notă:** Pentru operatorii > și < se folosește backslash \ pentru a preveni redirecționarea în shell (ex: severity:\>=:2).
 
 
