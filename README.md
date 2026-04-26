@@ -1,6 +1,6 @@
-# Proiect City Manager - Etapa 1
+# City Manager - Phase 1
 
-Acest program gestionează rapoartele de incidente urbane pe districte, folosind fișiere binare și permisiuni Linux.
+Sistem de gestionare a incidentelor urbane bazat pe fișiere binare și ierarhii de permisiuni Linux.
 
 ## Compilare
 
@@ -8,41 +8,43 @@ Acest program gestionează rapoartele de incidente urbane pe districte, folosind
 gcc -Wall city_manager.c -o city_manager
 ```
 
-## Exemple de utilizare
+## Exemple de utilizare (District: midtown)
 
-### 1. Adăugare raport (Manager/Inspector)
-
-```bash
-./city_manager --role manager --user alice --add downtown < test_add.txt
-```
-
-### 2. Listare rapoarte (Manager/Inspector)
+### Adăugare (Manager/Inspector):
 
 ```bash
-./city_manager --role inspector --user bob --list downtown
+./city_manager --role manager --user alice --add midtown < water.txt
 ```
 
-### 3. Vizualizare detaliată
+### Listare (vezi permisiuni & ID-uri):
 
 ```bash
-./city_manager --role inspector --user bob --view downtown <ID_RAPORT>
+./city_manager --role inspector --user maria --list midtown
 ```
 
-### 4. Filtrare (AI Assisted)
+### Vizualizare Detaliată (ID: 1695):
 
 ```bash
-./city_manager --role manager --user alice --filter downtown severity:>=:2 category:==:road
+./city_manager --role inspector --user maria --view midtown 1695
 ```
 
-### 5. Ștergere raport (Doar Manager)
+### Filtrare:
 
 ```bash
-./city_manager --role manager --user alice --remove_report downtown <ID_RAPORT>
+./city_manager --role inspector --user maria --filter midtown severity:\>=:2
 ```
 
-## Structura Arhivei
+### Ștergere (doar Manager):
 
-* `city_manager.c`: Codul sursă.
-* `ai_usage.md`: Documentația privind utilizarea AI.
-* `downtown/`, `midtown/`, `uptown/`: Structura de directoare generată.
-* `active_reports-*`: Link-uri simbolice către fișierele .dat.
+```bash
+./city_manager --role manager --user alice --remove_report midtown 1695
+```
+
+**Notă:** Pentru operatorii > și < se folosește backslash (\) pentru a preveni redirecționarea în shell (ex: severity:\>=:2).
+
+## Structura
+
+* city_manager.c: Codul sursă complet.
+* ai_usage.md: Documentația privind utilizarea și corectarea codului AI.
+* downtown/, midtown/, uptown/: Structura de directoare și fișiere de date.
+* active_reports-*: Link-uri simbolice (gestionate via lstat)
