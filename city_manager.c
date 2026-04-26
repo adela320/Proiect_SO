@@ -336,6 +336,37 @@ void list_district(const char *district_id, const char *role, const char *user)
     }
 }
 
+void manage_link(const char *district_id) {
+    char link_name[MAX];
+    char target_path[MAX];
+    struct stat st_link;
+    struct stat st_target;
+
+    // construim numele link ului si calea
+    snprintf(link_name, sizeof(link_name), "active_reports-%s", district_id);
+    snprintf(target_path, sizeof(target_path), "%s/reports.dat", district_id);
+
+    // verificam daca exista deja ceva cu numele de link_name
+    if (lstat(link_name, &st_link) == 0) {
+        // //Detect and report dangling links ith a warning
+        if (stat(link_name, &st_target) == -1) {
+            fprintf(stderr, "Warning: Link-ul %s era invalid si a fost reparat\n", link_name);
+        }
+
+        // stergem ce exista deja
+        if (unlink(link_name) == -1) {
+            perror("unlink");
+        }
+    }
+
+    // cream link ul
+    if (symlink(target_path, link_name) == -1) {
+        perror("Eroare creare symlink");
+    } else {
+        printf("Link simbolic actualizat: %s -> %s\n", link_name, target_path);
+    }
+}
+
 
 
 void update_threshold(const char *district_id, const char *role, const char *user, const char *value) {
@@ -397,7 +428,7 @@ void view_report(const char *district_id, const char *role, const char *user, in
         if (r.report_id == target_id) {
             printf("\nRAPORT %d \n", r.report_id);
             printf("Inspector:   %s\n", r.inspector_name);
-            printf("Location:     Lat: %.4f, Lon: %.4f\n", r.latitude, r.longitude);
+            printf("Location:     lat: %.4f, lon: %.4f\n", r.latitude, r.longitude);
             printf("Category:   %s\n", r.category);
             printf("Severity:  %d\n", r.severity);
             printf("Time:        %s", ctime(&r.timestamp));
@@ -589,24 +620,13 @@ int main(int argc, char **argv)
 
      printf("role: %s, user: %s, district_id: %s, cmd: %s\n", role, user, district_id, cmd); //pt verificare
 
-    if (strcmp(cmd, "filter") != 0) {
-        creare_fisiere(district_id);
+    if (strcmp(cmd, "add") == 0) {
+         creare_fisiere(district_id);
     }
 
-     char link_name[MAX], target_path[MAX];
 
      if (strcmp(cmd, "filter") != 0) {
-
-        //"Symbolic links pointing to each district's report file"
-        snprintf(link_name, sizeof(link_name), "active_reports-%s", district_id);
-        snprintf(target_path, sizeof(target_path), "%s/reports.dat", district_id);
-
-        //daca cumva exista legatura mai intai trb stearsa
-        struct stat link_stat;
-        if (lstat(link_name, &link_stat) == 0) {
-            unlink(link_name);
-        }
-        symlink(target_path, link_name);
+        manage_link(district_id);
      }
 
     verif_permisiuni(district_id);
