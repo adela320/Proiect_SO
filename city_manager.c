@@ -20,7 +20,6 @@ typedef struct Report{
 }Report;
 
 
-
 void modif(mode_t mode, char *str) //pentru afisare drepturilor
 {
      str[0] = (mode & S_IRUSR) ? 'r' : '-';
@@ -206,7 +205,7 @@ int match_condition(Report *r, const char *field, const char *op, const char *va
         }
     }
 
-    return 0; // Camp necunoscut
+    return 0;
 }
 
 //list_reports -> extrag si afisez toate datele pentru un anumit district
@@ -290,6 +289,12 @@ void add_report(const char *district_id, const char *role, const char *user)
             fprintf(stderr, "Eroare: Format date de intrare invalid.\n");
             exit(1);
         }
+
+        if (r.severity < 1 || r.severity > 3) {
+            fprintf(stderr, "Eroare: Severitatea trebuie se fie 1/2/3, nu %d\n", r.severity);
+            exit(1); // Oprim executia pentru a nu polua fisierul binar cu date gresite
+        }
+
         getchar(); // get rid of space / newline
         fgets(r.description, MAX, stdin);
         r.description[strcspn(r.description, "\n")] = 0; // elimina \n de la fgets
