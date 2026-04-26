@@ -108,11 +108,7 @@ Am folosit strcmp() care respectă ordinea lexicografică.
 
 ### 4. Integrare în filtrul din linia de comandă
 
-Am integrat funcțiile în filter_reports() astfel încât să pot aplica mai multe condiții simultan:
-
-```bash
-./city_manager --role inspector --user bob --filter downtown severity:>=:2 category:==:lighting
-```
+Am integrat funcțiile în filter_reports() astfel încât să pot aplica mai multe condiții simultan.
 
 Fiecare condiție e evaluată și combinate cu AND logic.
 
@@ -120,24 +116,36 @@ Fiecare condiție e evaluată și combinate cu AND logic.
 
 ## Teste efectuate
 
+Prima data, identificarea datelor:
+```bash
+./city_manager --role inspector --user maria --list midtown
+```
+
+Vom găsi, printre altele, aceste date:
+
+report_id: 9166, category: water, inspector: alice, severity: 2, description: Conducta de apa sparta
+report_id: 1695, category: lighting, inspector: maria, severity: 2, description: Stalp de iluminat daramat la intersectia principala.
+
 Am testat manual următoarele cazuri:
 
 **Condiție simplă:**
 ```bash
-./city_manager --role inspector --user bob --filter downtown severity:>=:2
+./city_manager --role inspector --user maria --filter midtown severity:\>=:2
 ```
+Rezultat așteptat: Afișează ambele rapoarte (9166 și 1695), deoarece ambele au severitatea 2.
 
 **Condiții multiple:**
 ```bash
-./city_manager --role inspector --user bob --filter downtown severity:>=:2 category:==:lighting
+./city_manager --role inspector --user maria --filter midtown severity:==:2 category:==:lighting
 ```
+Afișează doar raportul 1695, deoarece este singurul care este și de tip lighting și are severitatea 2.
 
 **Filtrare pe câmp text:**
 ```bash
-./city_manager --role inspector --user bob --filter downtown inspector:==:alice
+./city_manager --role manager --user alice --filter midtown inspector:==:alice
 ```
+Rezultat așteptat: Afișează doar raportul 9166, filtrând restul activității din district.
 
-Toate au funcționat corect după modificările mele.
 
 ---
 
@@ -150,4 +158,6 @@ Lucrul cu AI-ul la această parte din proiect m-a ajutat să înțeleg:
 - Cum să compar valori în funcție de tipul câmpului
 - Cum să integrez cod generat într-un proiect C existent
 
-AI-ul mi-a oferit un schelet util, dar verificarea și corectarea manuală au fost esențiale pentru ca totul să meargă cum trebuie.
+
+Notă privind redactarea:
+Pe lângă generarea logicii de filtrare, am utilizat asistentul AI și pentru a structura acest document (ai_usage.md) și pentru un scurt README.md, într-un format Markdown lizibil. Consider că vizual este mai ușor de citit decât un text simplu, cum ar fi fost inițial.

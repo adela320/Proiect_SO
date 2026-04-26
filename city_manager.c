@@ -219,7 +219,7 @@ void list_reports(const char *district){
 
     Report r;
     while (read(fd, &r, sizeof(Report)) > 0) {
-        printf("%d %s, %s, severity: %d, description: %s\n", r.report_id, r.category, r.inspector_name, r.severity, r.description);
+        printf("report_id: %d, category: %s, inspector: %s, severity: %d, description: %s\n", r.report_id, r.category, r.inspector_name, r.severity, r.description);
     }
     close(fd);
 }
