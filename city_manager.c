@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <time.h>
 #include <sys/types.h> // folosit pt mode_t
 #include <sys/stat.h>   // stat(), chmod(), mkdir()
@@ -20,8 +21,7 @@ typedef struct Report{
 
 
 
-// functie modif -> modific drepturile de acces ale fisierului (S_IRUSR, S_IWUSR etc)
-void modif(mode_t mode, char *str)
+void modif(mode_t mode, char *str) //pentru afisare drepturilor
 {
      str[0] = (mode & S_IRUSR) ? 'r' : '-';
      str[1] = (mode & S_IWUSR) ? 'w' : '-';
@@ -31,9 +31,71 @@ void modif(mode_t mode, char *str)
      str[5] = (mode & S_IXGRP) ? 'x' : '-';
      str[6] = (mode & S_IROTH) ? 'r' : '-';
      str[7] = (mode & S_IWOTH) ? 'w' : '-';
-     str[8] = (mode & S_IROTH) ? 'x' : '-';
+     str[8] = (mode & S_IXOTH) ? 'x' : '-';
      str[9] = '\0';
 
+}
+void creare_fisiere(const char *district_id)
+{
+    char path[MAX];
+    if(mkdir(district_id, 0750) == -1) //se creaza directorul, iar daca exista atunci
+    {
+        chmod(district_id, 0750); //modific permisiunile
+    }
+
+    int fd; //file descriptor
+
+    snprintf(path, sizeof(path), "%s/reports.dat", district_id); //creez reports.dat daca nu exista
+    fd = open(path, O_WRONLY | O_CREAT, 0664); //write only + create
+    if(fd != -1)
+    {
+       chmod(path, 0664);
+       close(fd);
+    }
+
+    snprintf(path, sizeof(path), "%s/district.cfg", district_id);
+    fd = open(path, O_WRONLY | O_CREAT, 0640);
+    if (fd != -1) {
+        chmod(path, 0640);
+        close(fd);
+    }
+
+    snprintf(path, sizeof(path), "%s/logged_district", district_id);
+    fd = open(path, O_WRONLY | O_CREAT, 0644);
+    if (fd != -1) {
+        chmod(path, 0644);
+        close(fd);
+    }
+
+}
+
+int verificare_acces(const char *filename, const char *role, char mode) { //implementare logica permisiuni
+    struct stat st;
+    if (stat(filename, &st) < 0){
+        return 0;
+    }
+    if (strcmp(role, "manager") == 0) {
+        if (mode == 'r')
+        {
+            return (st.st_mode & S_IRUSR);
+        }
+        if (mode == 'w')
+        {
+            return (st.st_mode & S_IWUSR);
+        }
+    }
+    else if (strcmp(role, "inspector") == 0) {
+
+        if (mode == 'r')
+        {
+            return (st.st_mode & S_IRGRP);
+        }
+        if (mode == 'w')
+        {
+            return (st.st_mode & S_IWGRP);
+        }
+    }
+    return 0;
 }
 
 //list_reports -> extrag si afisez toate datele pentru un anumit district
@@ -123,10 +185,14 @@ int main(int argc, char **argv)
          }
      }
 
+     if (role == NULL || user == NULL || district_id == NULL || cmd == NULL) {
+        fprintf(stderr, "lipsesc argumente necesare\n");
+        exit(1);
+    }
+
      printf("role: %s, user: %s, district_id: %s, cmd: %s\n", role, user, district_id, cmd);
 
-     mkdir(district_id, 750);
-     chmod(district_id, 750);
+    creare_fisiere(district_id);
 
      char link_name[MAX], target_path[MAX];
 
@@ -141,12 +207,43 @@ int main(int argc, char **argv)
     }
     symlink(target_path, link_name);
 
-    verif_permisiuni("district_directory1");
+    verif_permisiuni(district_id);
+
+    //check if cmd != NULL
+
+    if (cmd == NULL) {
+        fprintf(stderr, "Nu a fost specificata nicio comanda add/list.\n");
+        exit(1);
+    }
 
      if(strcmp(cmd, "list") == 0)
      {
-         list_reports("district_directory1"); //trebuie district_id, pentru verificare am folosit district_directory1
-         log_action(district_id, role, user, "list");
+        char path[MAX];
+        snprintf(path, sizeof(path), "%s/reports.dat", district_id);
+
+        if (verificare_acces(path, role, 'r')) {
+            printf("Succes : Acces permis pentru list in districtul %s\n", district_id);
+
+            list_reports(district_id);
+
+            //verif permisiunea de scriere pe log
+            char log_path[MAX];
+            snprintf(log_path, sizeof(log_path), "%s/logged_district", district_id);
+
+            if (verificare_acces(log_path, role, 'w')) {
+                log_action(district_id, role, user, "list");
+            }
+            else
+            {
+                fprintf(stderr, "Rolul %s nu are drept de scriere in %s\n", role, log_path);
+                exit(1);
+            }
+        }
+        else
+        {
+            fprintf(stderr, "Acces refuzat. Rolul %s nu poate citi %s\n", role, path);
+            exit(1);
+        }
      }
      else if (strcmp(cmd, "add") == 0) {
         // logica de citire a datelor pentru report
