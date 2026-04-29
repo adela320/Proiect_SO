@@ -588,7 +588,7 @@ int remove_district(const char *district_id, const char *role, const char *user)
             wait(&status);
             //verificare cu SIGCHILD
             char link_name[MAX];
-            snprintf(link_name, sizeof(link_name), "active-reports-%s", district_id);
+            snprintf(link_name, sizeof(link_name), "active_reports-%s", district_id);
             if (unlink(link_name) == -1)
             {
                 perror("unlink");
@@ -700,6 +700,10 @@ int main(int argc, char **argv)
          add_report(district_id, role, user);
 
       }
+      else if(strcmp(cmd, "remove_district") == 0)
+     {
+        remove_district(district_id, role, user);
+     }
       else if (strcmp(cmd, "view") == 0)
     {
          if (aux == NULL) {
@@ -728,10 +732,7 @@ int main(int argc, char **argv)
     else if (strcmp(cmd, "filter") == 0) {
          filter_reports(district_id, role, argc, argv, filter_start_index);
     }
-    else if(strcmp(cmd, "remove_district"))
-    {
-        remove_district(district_id, role, user);
-    }
+
 
      return 0;
 }
