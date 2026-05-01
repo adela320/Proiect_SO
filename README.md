@@ -2,10 +2,17 @@
 
 Sistem de gestionare a incidentelor urbane bazat pe fișiere binare și ierarhii de permisiuni Linux.
 
+## Structura
+
+* city_manager.c: Codul sursă complet.
+* ai_usage.md: Documentația privind utilizarea și corectarea codului AI.
+* downtown/, midtown/, uptown/: Structura de directoare și fișiere de date.
+* active_reports-*: Link-uri simbolice (gestionate via lstat)
+
 ## Compilare
 
 ```bash
-gcc -Wall city_manager.c -o city_manager
+gcc -Wall -o city_manager city_manager.c
 ```
 
 ## Exemple de utilizare (District: midtown)
@@ -42,9 +49,4 @@ gcc -Wall city_manager.c -o city_manager
 
 **Notă:** Pentru operatorii > și < se folosește backslash (\) pentru a preveni redirecționarea în shell (ex: severity:\>=:2).
 
-## Structura
 
-* city_manager.c: Codul sursă complet.
-* ai_usage.md: Documentația privind utilizarea și corectarea codului AI.
-* downtown/, midtown/, uptown/: Structura de directoare și fișiere de date.
-* active_reports-*: Link-uri simbolice (gestionate via lstat)
