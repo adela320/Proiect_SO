@@ -6,6 +6,7 @@
 #include <sys/stat.h>   // stat(), chmod(), mkdir()
 #include <fcntl.h>    // pentru open() si flag-uri
 #include <unistd.h>   // pentru read(), write(), lseek() si altele
+#include <sys/wait.h> //pentru wait()
 #define MAX 100
 
 
@@ -561,6 +562,46 @@ void remove_report(const char *district_id, const char *role, const char *user, 
     close(fd);
 }
 
+int remove_district(const char *district_id, const char *role, const char *user)
+{
+     if (strcmp(role, "manager") != 0) { //daca e manager poate scrie
+        fprintf(stderr, "Acces refuzat. Trebuie sa fi manager\n");
+        exit(1);
+    }
+
+    pid_t pid = fork();
+    if(pid < 0)
+    {
+        perror("Eroare la pid");
+        return 0;
+    }
+    else
+    {
+        if(pid == 0)
+        {
+            printf("Se executa stergerea folderului");
+            execlp("rm", "rm", "rf", district_id, NULL);
+        }
+        else
+        {
+            int status;
+            wait(&status);
+            //verificare cu SIGCHILD
+            char link_name[MAX];
+            snprintf(link_name, sizeof(link_name), "active_reports-%s", district_id);
+            if (unlink(link_name) == -1)
+            {
+                perror("unlink");
+            }
+            else
+            {
+                printf("Symlink-ul a fost sters cu succes");
+            }
+         }
+    }
+    return 1;
+}
+
 int main(int argc, char **argv)
 {
      char *role = NULL;
@@ -608,6 +649,11 @@ int main(int argc, char **argv)
             aux = argv[++i]; // ID-ul raportului de sters
             cmd = "remove_report";
         }
+        else if(strcmp(argv[i], "--remove_district") == 0)
+        {
+            district_id = argv[++i];
+            cmd = "remove_district";
+        }
         else if (strcmp(argv[i], "--filter") == 0) {
             district_id = argv[++i];
             cmd = "filter";
@@ -622,7 +668,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    // printf("role: %s, user: %s, district_id: %s, cmd: %s\n", role, user, district_id, cmd); //pt verificare - functioneaza
+     printf("role: %s, user: %s, district_id: %s, cmd: %s\n", role, user, district_id, cmd); //pt verificare - functioneaza
      if (strcmp(role, "inspector") != 0 && strcmp(role, "manager") != 0) { //acceptam doar roluri tip inspector si manager -> verificam de la inceput sa fie ok
         fprintf(stderr, "Eroare: Rolul '%s' nu este valid, foloseste 'inspector' sau 'manager'\n", role);
         exit(1);
@@ -654,6 +700,10 @@ int main(int argc, char **argv)
          add_report(district_id, role, user);
 
       }
+      else if(strcmp(cmd, "remove_district") == 0)
+     {
+        remove_district(district_id, role, user);
+     }
       else if (strcmp(cmd, "view") == 0)
     {
          if (aux == NULL) {
@@ -682,6 +732,7 @@ int main(int argc, char **argv)
     else if (strcmp(cmd, "filter") == 0) {
          filter_reports(district_id, role, argc, argv, filter_start_index);
     }
+
 
      return 0;
 }
