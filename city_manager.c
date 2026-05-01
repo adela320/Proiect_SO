@@ -566,13 +566,13 @@ int remove_district(const char *district_id, const char *role, const char *user)
 {
      if (strcmp(role, "manager") != 0) { //daca e manager poate scrie
         fprintf(stderr, "Acces refuzat. Trebuie sa fi manager\n");
-        exit(1);
+        return 0;
     }
 
     pid_t pid = fork();
     if(pid < 0)
     {
-        perror("Eroare la pid");
+        perror("Eroare la fork");
         return 0;
     }
     else
@@ -580,22 +580,31 @@ int remove_district(const char *district_id, const char *role, const char *user)
         if(pid == 0)
         {
             printf("Se executa stergerea folderului");
-            execlp("rm", "rm", "rf", district_id, NULL);
+            execlp("rm", "rm", "-rf", district_id, NULL);
+            perror("Eroare la execlp");
+            exit(1);
         }
         else
         {
             int status;
             wait(&status);
-            //verificare cu SIGCHILD
-            char link_name[MAX];
-            snprintf(link_name, sizeof(link_name), "active_reports-%s", district_id);
-            if (unlink(link_name) == -1)
+            if(WIFEXITED(status) && WEXITSTATUS(status) == 0) //verif daca stergerea a reusit, dupa trecem la symlink
             {
-                perror("unlink");
+
+                char link_name[MAX];
+                snprintf(link_name, sizeof(link_name), "active_reports-%s", district_id);
+                if (unlink(link_name) == -1)
+                {
+                    perror("unlink");
+                }
+                else
+                {
+                    printf("Symlink-ul a fost sters cu succes");
+                }
             }
             else
             {
-                printf("Symlink-ul a fost sters cu succes");
+                fprintf(stderr, "Comanda 'rm' a esuat, nu a fost sters symlink-ul\n");
             }
          }
     }
@@ -679,7 +688,7 @@ int main(int argc, char **argv)
     }
 
 
-     if (strcmp(cmd, "filter") != 0) {
+     if ( (strcmp(cmd, "filter") != 0) || (strcmp(cmd, "remove_district") != 0) ){
         manage_link(district_id);
      }
 
