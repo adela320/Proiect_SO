@@ -7,7 +7,9 @@
 #include <fcntl.h>    // pentru open() si flag-uri
 #include <unistd.h>   // pentru read(), write(), lseek() si altele
 #include <sys/wait.h> //pentru wait()
+#include <signal.h>
 #define MAX 100
+#define max_pid 15
 
 
 typedef struct Report{
@@ -19,6 +21,8 @@ typedef struct Report{
      time_t timestamp;
      char description[MAX];
 }Report;
+
+void notify_monitor(const char *district_id, const char *role, const char *user);
 
 
 void modif(mode_t mode, char *str) //pentru afisare drepturilor
@@ -301,6 +305,9 @@ void add_report(const char *district_id, const char *role, const char *user)
             close(fd);
 
             log_action(district_id, role, user, "add");
+
+            notify_monitor(district_id, role, user); //notificam monitorul -> faza 2
+
             printf("Succes: Raport %d adaugat in %s\n", r.report_id, district_id);
         }
 }
@@ -569,6 +576,13 @@ int remove_district(const char *district_id, const char *role, const char *user)
         return 0;
     }
 
+    // Verificare de siguranta
+    // nu vrem sa rulam "rm -rf" pe directorul curent, radacina sau un string gol
+    if (district_id == NULL || strlen(district_id) == 0 || strcmp(district_id, ".") == 0 || strcmp(district_id, "..") == 0 || strcmp(district_id, "/") == 0) {
+        fprintf(stderr, "Eroare: Nume district invalid sau periculos: %s\n", district_id);
+        return 0;
+    }
+
     pid_t pid = fork();
     if(pid < 0)
     {
@@ -593,13 +607,16 @@ int remove_district(const char *district_id, const char *role, const char *user)
 
                 char link_name[MAX];
                 snprintf(link_name, sizeof(link_name), "active_reports-%s", district_id);
-                if (unlink(link_name) == -1)
-                {
-                    perror("unlink");
-                }
-                else
-                {
-                    printf("Symlink-ul a fost sters cu succes");
+                struct stat st;
+                if (lstat(link_name, &st) == 0) {
+                    if (unlink(link_name) == -1)
+                    {
+                        perror("unlink");
+                    }
+                    else
+                    {
+                        printf("Symlink-ul a fost sters cu succes");
+                    }
                 }
             }
             else
@@ -610,6 +627,40 @@ int remove_district(const char *district_id, const char *role, const char *user)
     }
     return 1;
 }
+
+void notify_monitor(const char *district_id, const char *role, const char *user) {
+    int fd = open(".monitor_pid", O_RDONLY);
+    char pid_str[max_pid];
+    int monitor_informed = 0;
+
+    if (fd != -1)
+    {
+        ssize_t bytes = read(fd, pid_str, sizeof(pid_str) - 1);
+        if (bytes > 0)
+        {
+            pid_str[bytes] = '\0';
+            pid_t monitor_pid = atoi(pid_str);
+
+            // trm SIGUSR1 monitorului
+            if (kill(monitor_pid, SIGUSR1) == 0)
+            {
+                monitor_informed = 1;
+            }
+        }
+        close(fd);
+    }
+
+    // aratam daca monitorul a fost informat
+    if (monitor_informed)
+    {
+        log_action(district_id, role, user, "Monitor informed");
+    }
+    else
+    {
+        log_action(district_id, role, user, "Monitor could not be informed");
+    }
+}
+
 
 int main(int argc, char **argv)
 {
