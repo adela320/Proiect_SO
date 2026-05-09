@@ -13,7 +13,6 @@ Pe scurt, AI-ul a generat structura inițială pentru funcțiile de filtrare (`p
 ### Notificarea prin SIGUSR1
 
 Am utilizat AI pentru a înțelege implementarea corectă a `sigaction()`, deoarece cerința interzicea utilizarea funcției mai simple `signal()`.
-- **De ce**: `sigaction` este mai robustă și standard în programarea de sistem modernă.
 
 ### Gestiunea Proceselor
 

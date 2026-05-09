@@ -12,6 +12,13 @@ Sistem de gestionare a incidentelor urbane bazat pe fișiere binare, ierarhii de
 * active_reports-*: Link-uri simbolice (gestionate via lstat)
 * .monitor_pid : Fișier ascuns creat automat pentru stocarea PID-ului monitorului
 
+## Observații organizare districte
+
+- **Faza 1:** `downtown`, `midtown`, `uptown`
+- **Faza 2:** În principal: `another_town2`, `uptown` (testare monitor + SIGUSR1)
+
+**Notă:** La `midtown`, `uptown` logged_district conține date din ambele faze; `another_town` a fost șters pentru testarea `remove_district`, nu mai există în prezent
+
 ## Compilare
 
 ```bash
@@ -59,7 +66,7 @@ gcc -Wall -o monitor_reports monitor_reports.c
 ```bash
 ./city_manager --role manager --user alice --remove_district midtown
 ```
-**Notă:**: Această comandă șterge recursiv folderul districtului și link-ul simbolic asociat.
+**Notă:** Această comandă șterge recursiv folderul districtului și link-ul simbolic asociat.
 
 ### Procedura de Testare (Monitorizare prin Semnale)
 
@@ -79,6 +86,8 @@ Adăugați un raport, de exemplu:
 
 În terminalul 1 (cel cu monitorul) ar trebui să apară imediat mesajul că s-a adăugat un raport nou.
 Puteți să mai adăugați și alte rapoarte.
-Pentru a opri monitorul, folosiți CTRL + C în terminalul 1.
-În fișierul logged_district corespunzător districtului utilizat veți putea vedea mesajele care vă spun dacă monitorul a fost informat cu succes.
 
+Pentru a opri monitorul, folosiți CTRL + C în terminalul 1.
+În fișierul logged_district corespunzător districtului utilizat veți putea vedea mesajele care vă spun că monitorul a fost informat cu succes.
+
+Dacă nu rulați `./monitor_reports` precum am precizat, în log-ul districtului va apărea mesajul "Monitor could not be informed", confirmând că programul a detectat corect absența monitorului.
