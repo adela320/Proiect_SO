@@ -4,8 +4,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
-
-#define pid_file ".monitor.pid"
+#define max_pid 15 //sa am destul spatiu pt int care are max 10 cifre
+#define pid_file ".monitor_pid"
 
 void handle(int sig)
 {
@@ -30,9 +30,13 @@ int main(void)
         exit(1);
     }
 
-    char pid_str[10];
+    char pid_str[max_pid];
     int len = sprintf(pid_str, "%d", getpid());
-    write(fid, pid_str, len);
+    if(write(fid, pid_str, len) == 1)
+    {
+        printf("Eroare la scrierea pid-ului\n");
+        exit(1);
+    }
     close(fid);
 
 
@@ -46,7 +50,7 @@ int main(void)
     sigaction(SIGINT, &sa, NULL);
 
     printf("Running...PID : %d\n", getpid());
-    while(1)
+    while(1) //bucla infinita pana la SIGINT
     {
        pause();
     }
