@@ -11,7 +11,8 @@ void handle(int sig)
 {
     if(sig == SIGUSR1)
     {
-         printf("Un nou report a fost adaugat\n");
+        printf("Un nou report a fost adaugat\n");
+        fflush(stdout); //ca sa plece notificarea instant
     }
     else if(sig == SIGINT)
     {
@@ -50,6 +51,7 @@ int main(void)
     sigaction(SIGINT, &sa, NULL);
 
     printf("Running...PID : %d\n", getpid());
+    fflush(stdout);
     while(1) //bucla infinita pana la SIGINT
     {
        pause();

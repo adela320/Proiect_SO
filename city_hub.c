@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #define maxi 256
+#define max_districts 50
 
 void print_comenzi();
 void proceseaza_iesire_monitor(int read_fd);
@@ -37,10 +38,10 @@ void proceseaza_iesire_monitor(int read_fd)
        {
         printf("[hub_mon] Notificare: Procesul monitor s-a terminat.\n");
        }
-       close(read_fd);
-       wait(NULL); //asteptam procesul monitor sa se inchida de tot
-       exit(0);
    }
+    close(read_fd);
+    wait(NULL); //asteptam procesul monitor sa se inchida de tot
+    exit(0);
 }
 
 void start_monitor()
@@ -55,7 +56,7 @@ void start_monitor()
     else if(hub_mon_pid == 0)
     {
         //suntem in procesul hub_mon_pid
-        pid_t fd_pipe[2];
+        int fd_pipe[2];
         if(pipe(fd_pipe) < 0)
         {
             perror("Eroare creare pipe hub_mon");
@@ -84,6 +85,75 @@ void start_monitor()
             close(fd_pipe[1]);
 
             proceseaza_iesire_monitor(fd_pipe[0]);
+        }
+    }
+}
+
+void calculate_scores()
+{
+    char *districts[max_districts];
+    int dist_count = 0;
+
+    char *token = strtok(NULL, " ");
+    while(token != NULL && dist_count < max_districts)
+    {
+        districts[dist_count] = token;
+        dist_count++;
+        token = strtok(NULL, " ");
+    }
+
+    if(dist_count == 0)
+    {
+        printf("Comanda trebuie sa fie de forma: calculate_scores <district1> <district2> ...\n");
+        return;
+    }
+
+
+    // parcurgem fiecare district din lista
+    for(int i = 0; i < dist_count; i++) {
+        int fd_pipe[2];
+        if(pipe(fd_pipe) < 0) {
+            perror("pipe error:");
+            continue;
+        }
+
+        pid_t pid = fork();
+        if(pid < 0)
+        {
+            perror("fork error:");
+            continue;
+        }
+        else if(pid == 0)
+        {
+            dup2(fd_pipe[1], STDOUT_FILENO);
+            close(fd_pipe[0]);
+            close(fd_pipe[1]);
+
+            execl("./calculate_scores", "calculate_scores", districts[i], NULL);
+            perror("Eroare execl calculate_scores");
+            exit(1);
+        }
+        else
+        {
+            close(fd_pipe[1]);
+
+            char buffer[maxi*2];
+            ssize_t bytes_read;
+
+            while(1)
+            {
+                bytes_read = read(fd_pipe[0], buffer, sizeof(buffer) - 1);
+
+                if(bytes_read <= 0)
+                {
+                    break;
+                }
+                buffer[bytes_read] = '\0';
+                printf("%s", buffer);
+            }
+
+            close(fd_pipe[0]);
+            wait(NULL);
         }
     }
 }
@@ -119,7 +189,7 @@ int main(void)
         }
         else if(strcmp(cmd, "calculate_scores") == 0)
         {
-           // calculate_scores();
+            calculate_scores();
         }
         else
         {
