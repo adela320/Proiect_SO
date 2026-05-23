@@ -11,7 +11,7 @@ void handle(int sig)
 {
     if(sig == SIGUSR1)
     {
-        printf("Un nou report a fost adaugat\n");
+        printf("Un nou raport a fost adaugat\n");
         fflush(stdout); //ca sa plece notificarea instant
     }
     else if(sig == SIGINT)
@@ -27,7 +27,7 @@ int main(void)
     int fid = open(pid_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if(fid == -1)
     {
-        fprintf(stderr, "Eroare la deschiderea fisierului pid_file\n");
+        fprintf(stderr, "Eroare la deschiderea pid_file\n");
         exit(1);
     }
 

@@ -36,7 +36,7 @@ void proceseaza_iesire_monitor(int read_fd)
        fflush(stdout);
        if(strstr(buff, "ended") != NULL || strstr(buff, "Eroare") != NULL)
        {
-        printf("[hub_mon] Notificare: Procesul monitor s-a terminat.\n");
+          printf("[hub_mon] Notificare: Procesul monitor s-a terminat.\n");
        }
    }
     close(read_fd);
@@ -108,12 +108,16 @@ void calculate_scores()
         return;
     }
 
+    int read_pipes[max_districts];
 
-    // parcurgem fiecare district din lista
-    for(int i = 0; i < dist_count; i++) {
+    // lansam toate procesele in paralel
+    for(int i = 0; i < dist_count; i++)
+    {
         int fd_pipe[2];
-        if(pipe(fd_pipe) < 0) {
+        if(pipe(fd_pipe) < 0)
+        {
             perror("pipe error:");
+            read_pipes[i] = -1;
             continue;
         }
 
@@ -121,6 +125,7 @@ void calculate_scores()
         if(pid < 0)
         {
             perror("fork error:");
+            read_pipes[i] = -1;
             continue;
         }
         else if(pid == 0)
@@ -135,26 +140,45 @@ void calculate_scores()
         }
         else
         {
-            close(fd_pipe[1]);
+            close(fd_pipe[1]); // inchide capatul de scriere - procesul parinte
+            read_pipes[i] = fd_pipe[0]; // salvam capatul de citire pentru mai tarziu
+        }
+    }
 
-            char buffer[maxi*2];
-            ssize_t bytes_read;
+    // luam pe rand rez de la fiecare si le formatam curat
+    printf("\nWORKLOAD REPORT\n");
+    for(int i = 0; i < dist_count; i++)
+    {
+        if(read_pipes[i] == -1)
+        {
+            continue;
+        }
 
-            while(1)
+        printf("\nDistrict: %s\n", districts[i]);
+
+        char buffer[maxi*2];
+        ssize_t bytes_read;
+
+        while(1)
+        {
+            bytes_read = read(read_pipes[i], buffer, sizeof(buffer) - 1);
+            if(bytes_read <= 0)
             {
-                bytes_read = read(fd_pipe[0], buffer, sizeof(buffer) - 1);
-
-                if(bytes_read <= 0)
-                {
-                    break;
-                }
-                buffer[bytes_read] = '\0';
-                printf("%s", buffer);
+                break;
             }
 
-            close(fd_pipe[0]);
-            wait(NULL);
+            buffer[bytes_read] = '\0';
+            printf("%s", buffer);
         }
+
+        close(read_pipes[i]);
+    }
+    printf("\n");
+
+    // curatam toate procesele zombie
+    for(int i = 0; i < dist_count; i++)
+    {
+        wait(NULL);
     }
 }
 
@@ -181,6 +205,10 @@ int main(void)
         if(strcmp(cmd, "exit") == 0)
         {
             printf("Inchidere...\n");
+            // daca monitorul a fost pornit, il oprim fortat
+            if (hub_mon_pid > 0) {
+                kill(hub_mon_pid, SIGINT); // trimitem SIGINT ca monitorul sa se inchida si sa stearga .monitor_pid
+            }
             break;
         }
         else if(strcmp(cmd, "start_monitor") == 0)

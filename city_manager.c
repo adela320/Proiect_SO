@@ -22,6 +22,55 @@ typedef struct Report{
      char description[MAX];
 }Report;
 
+// conversie mod permisiuni (mode_t) in string lizibil (ex: "rw-rw-r--")
+void modif(mode_t mode, char *str);
+
+// creare structura directoare si fisiere pentru un district nou
+void creare_fisiere(const char *district_id);
+
+// verificare daca un rol are acces (citire/scriere) la un fisier
+int verificare_acces(const char *filename, const char *role, char mode);
+
+// parsare conditie de filtrare din format text (field:op:value)
+int parse_condition(const char *input, char *field, char *op, char *value);
+
+// verificare daca un raport indeplineste o conditie de filtrare
+int match_condition(Report *r, const char *field, const char *op, const char *value);
+
+// listare toate rapoartele dintr-un district cu permisiuni si informatii fisier
+void list_reports(const char *district);
+
+// scriere actiune in fisierul de log al districtului
+void log_action(const char *district, const char *role, const char *user, const char *action);
+
+// afisare permisiuni pentru un fisier/director specificat
+void verif_permisiuni(const char *path);
+
+// adaugare raport nou in district (citire date prin stdin)
+void add_report(const char *district_id, const char *role, const char *user);
+
+// listare rapoarte cu verificare permisiuni si logging
+void list_district(const char *district_id, const char *role, const char *user);
+
+// creare/actualizare link simbolic catre reports.dat
+void manage_link(const char *district_id);
+
+// actualizare prag de severitate in district.cfg (doar manager)
+void update_threshold(const char *district_id, const char *role, const char *user, const char *value);
+
+// afisare detaliata a unui singur raport dupa ID
+void view_report(const char *district_id, const char *role, const char *user, int target_id);
+
+// filtrare rapoarte dupa conditii multiple (severity, category, inspector, timestamp)
+void filter_reports(const char *district_id, const char *role, int argc, char **argv, int start_index);
+
+// stergere raport din fisier binar prin ID (doar manager)
+void remove_report(const char *district_id, const char *role, const char *user, int target_id);
+
+// stergere completa district director + symlink prin fork si execl (doar manager)
+int remove_district(const char *district_id, const char *role, const char *user);
+
+// trimitere semnal SIGUSR1 catre procesul monitor pentru notificare raport nou
 void notify_monitor(const char *district_id, const char *role, const char *user);
 
 
@@ -183,19 +232,32 @@ int match_condition(Report *r, const char *field, const char *op, const char *va
         }
     }
     //  Filtrare dupa timestamp
-    else if (strcmp(field, "timestamp") == 0) {
+    else if (strcmp(field, "timestamp") == 0)
+    {
         long long val = atoll(value);
         if (strcmp(op, "==") == 0)
         {
             return r->timestamp == val;
         }
+        if (strcmp(op, "!=") == 0)
+        {
+            return r->timestamp != val;
+        }
         if (strcmp(op, ">") == 0)
         {
             return r->timestamp > val;
         }
+        if (strcmp(op, ">=") == 0)
+        {
+            return r->timestamp >= val;
+        }
         if (strcmp(op, "<") == 0)
         {
             return r->timestamp < val;
+        }
+        if (strcmp(op, "<=") == 0)
+        {
+            return r->timestamp <= val;
         }
     }
 
@@ -437,13 +499,13 @@ void view_report(const char *district_id, const char *role, const char *user, in
     // citim inregistrari de dimensiune fixa pana gasim id-ul
     while (read(fd, &r, sizeof(Report)) > 0) {
         if (r.report_id == target_id) {
-            printf("\nRAPORT %d \n", r.report_id);
-            printf("Inspector:   %s\n", r.inspector_name);
+            printf("\nRAPORT   %d \n", r.report_id);
+            printf("Inspector:    %s\n", r.inspector_name);
             printf("Location:     lat: %.4f, lon: %.4f\n", r.latitude, r.longitude);
-            printf("Category:   %s\n", r.category);
-            printf("Severity:  %d\n", r.severity);
-            printf("Time:        %s", ctime(&r.timestamp));
-            printf("Description:   %s\n", r.description);
+            printf("Category:     %s\n", r.category);
+            printf("Severity:     %d\n", r.severity);
+            printf("Time:         %s", ctime(&r.timestamp));
+            printf("Description:  %s\n", r.description);
             printf("\n");
             gasit = 1;
             break;
@@ -583,6 +645,13 @@ int remove_district(const char *district_id, const char *role, const char *user)
         return 0;
     }
 
+    struct stat st_dir;
+    if (stat(district_id, &st_dir) == -1 || !S_ISDIR(st_dir.st_mode))
+    {
+        fprintf(stderr, "Eroare: Districtul '%s' nu exista sau nu este un director\n", district_id);
+        return 0;
+    }
+
     pid_t pid = fork();
     if(pid < 0)
     {
@@ -593,7 +662,7 @@ int remove_district(const char *district_id, const char *role, const char *user)
     {
         if(pid == 0)
         {
-            printf("Se executa stergerea folderului");
+            printf("Se executa stergerea folderului\n");
             execlp("rm", "rm", "-rf", district_id, NULL);
             perror("Eroare la execlp");
             exit(1);
@@ -615,7 +684,7 @@ int remove_district(const char *district_id, const char *role, const char *user)
                     }
                     else
                     {
-                        printf("Symlink-ul a fost sters cu succes");
+                        printf("Symlink-ul a fost sters cu succes\n");
                     }
                 }
             }
@@ -739,7 +808,7 @@ int main(int argc, char **argv)
     }
 
 
-     if ( (strcmp(cmd, "filter") != 0) || (strcmp(cmd, "remove_district") != 0) ){
+     if ( (strcmp(cmd, "filter") != 0) && (strcmp(cmd, "remove_district") != 0) ){
         manage_link(district_id);
      }
 
@@ -779,6 +848,12 @@ int main(int argc, char **argv)
              fprintf(stderr, "Eroare: Comanda update_threshold necesita o valoare\n");
              exit(1);
          }
+         int valoare_prag = atoi(aux);
+         if (valoare_prag < 1 || valoare_prag > 3)
+         {
+            printf("Eroare: Pragul introdus (%d) este invalid! Trebuie sa fie 1, 2 sau 3\n", valoare_prag);
+            exit(1);
+         }
          update_threshold(district_id, role, user, aux);
     }
     else if (strcmp(cmd, "remove_report") == 0)
@@ -789,7 +864,8 @@ int main(int argc, char **argv)
         }
        remove_report(district_id, role, user, atoi(aux));
     }
-    else if (strcmp(cmd, "filter") == 0) {
+    else if (strcmp(cmd, "filter") == 0)
+    {
          filter_reports(district_id, role, argc, argv, filter_start_index);
     }
 
