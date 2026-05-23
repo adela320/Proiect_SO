@@ -1,4 +1,4 @@
-## AI usage phase 3
+## Utilizarea AI - Faza 3
 
 ### 1. Clarificarea rolului și utilizării apelului `dup2()`
 * **Context inițial:** Nu înțelegeam exact cum poate programul extern `calculate_scores` să își trimită automat output-ul în pipe-ul din Hub fără ca eu să modific codul scorerului și să îi adaug descriptori de fișiere.
