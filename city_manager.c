@@ -652,6 +652,23 @@ int remove_district(const char *district_id, const char *role, const char *user)
         return 0;
     }
 
+    char link_name[MAX];
+    snprintf(link_name, sizeof(link_name), "active_reports-%s", district_id);
+    struct stat st_lnk;
+
+    // stergem link-ul simbolic mai intai
+    if (lstat(link_name, &st_lnk) == 0)
+    {
+        if (unlink(link_name) == -1)
+        {
+            perror("Eroare la stergere symlink");
+        }
+        else
+        {
+            printf("Symlink-ul %s a fost sters cu succes\n", link_name);
+        }
+    }
+
     pid_t pid = fork();
     if(pid < 0)
     {
@@ -662,7 +679,7 @@ int remove_district(const char *district_id, const char *role, const char *user)
     {
         if(pid == 0)
         {
-            printf("Se executa stergerea folderului\n");
+            printf("Se executa stergerea folderului pentru districtul %s...\n", district_id);
             execlp("rm", "rm", "-rf", district_id, NULL);
             perror("Eroare la execlp");
             exit(1);
@@ -671,26 +688,13 @@ int remove_district(const char *district_id, const char *role, const char *user)
         {
             int status;
             wait(&status);
-            if(WIFEXITED(status) && WEXITSTATUS(status) == 0) //verif daca stergerea a reusit, dupa trecem la symlink
+            if(WIFEXITED(status) && WEXITSTATUS(status) == 0)
             {
-
-                char link_name[MAX];
-                snprintf(link_name, sizeof(link_name), "active_reports-%s", district_id);
-                struct stat st;
-                if (lstat(link_name, &st) == 0) {
-                    if (unlink(link_name) == -1)
-                    {
-                        perror("unlink");
-                    }
-                    else
-                    {
-                        printf("Symlink-ul a fost sters cu succes\n");
-                    }
-                }
+                printf("Succes: Folderul districtului a fost eliminat de pe disc.\n");
             }
             else
             {
-                fprintf(stderr, "Comanda 'rm' a esuat, nu a fost sters symlink-ul\n");
+                fprintf(stderr, "Eroare: Comanda 'rm' a esuat la stergerea folderului.\n");
             }
          }
     }
