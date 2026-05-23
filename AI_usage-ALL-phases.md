@@ -46,7 +46,7 @@ Câmpuri suportate:
 - timestamp
 
 Operatori suportați:
-== != < <= > >="
+== != < <= > >=
 
 ---
 
@@ -201,5 +201,5 @@ La propunerea AI-ului, am insistat pe verificări de siguranță. Am adăugat lo
 
 Pe lângă scrierea codului, am utilizat asistența AI pentru:
 - **Structurarea fișierelor .md**: Transformarea notițelor într-o documentație lizibilă și bine organizată (README și AI usage).
-- **Corectare gramaticală**: Asigurarea unui ton profesional și utilizarea diacriticelor în limba română.
+- **Corectare și îmbunătățire limbaj:**: Asigurarea unui ton profesional & terminologie consistentă pentru conceptele de sisteme de operare și utilizarea diacriticelor.
 
